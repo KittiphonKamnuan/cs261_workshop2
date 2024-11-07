@@ -1,51 +1,60 @@
-package com.example.demo.controller;
+// StudentController.java
+package com.example.crud;
 
-import com.example.demo.model.Student;
-import com.example.demo.service.StudentService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/students")
+@CrossOrigin(origins = "*")
 public class StudentController {
 
     @Autowired
-    private StudentService studentService;
+    private StudentRepository studentRepository;
 
-    // Create a new student
-    @PostMapping
-    public ResponseEntity<Student> createStudent(@RequestBody Student student) {
-        Student newStudent = studentService.saveStudent(student);
-        return ResponseEntity.ok(newStudent);
+    @PostMapping("/add")
+    public ResponseEntity<?> createStudent(@RequestBody Map<String, Object> tuData) {
+        try {
+            // Create new student from the TU API response data
+            Student student = new Student();
+            student.setUserName((String) tuData.get("username"));
+            student.setType((String) tuData.get("type"));
+            student.setEngName((String) tuData.get("displayname_en"));
+            student.setEmail((String) tuData.get("email"));
+            student.setFaculty((String) tuData.get("faculty"));
+
+            Student savedStudent = studentRepository.save(student);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedStudent);
+        } catch (Exception e) {
+            return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error creating student: " + e.getMessage());
+        }
     }
 
-    // Get all students
     @GetMapping
-    public List<Student> getAllStudents() {
-        return studentService.getAllStudents();
+    public ResponseEntity<List<Student>> getAllStudents() {
+        List<Student> students = studentRepository.findAll();
+        return ResponseEntity.ok(students);
     }
 
-    // Get a student by ID
     @GetMapping("/{id}")
-    public ResponseEntity<Student> getStudentById(@PathVariable Long id) {
-        Student student = studentService.getStudentById(id);
-        return student != null ? ResponseEntity.ok(student) : ResponseEntity.notFound().build();
+    public ResponseEntity<?> getStudentById(@PathVariable Long id) {
+        return studentRepository.findById(id)
+            .map(student -> ResponseEntity.ok(student))
+            .orElse(ResponseEntity.notFound().build());
     }
 
-    // Update a student by ID
-    @PutMapping("/{id}")
-    public ResponseEntity<Student> updateStudent(@PathVariable Long id, @RequestBody Student studentDetails) {
-        Student updatedStudent = studentService.updateStudent(id, studentDetails);
-        return updatedStudent != null ? ResponseEntity.ok(updatedStudent) : ResponseEntity.notFound().build();
-    }
-
-    // Delete a student by ID
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteStudent(@PathVariable Long id) {
-        boolean isDeleted = studentService.deleteStudent(id);
-        return isDeleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+    public ResponseEntity<?> deleteStudent(@PathVariable Long id) {
+        if (studentRepository.existsById(id)) {
+            studentRepository.deleteById(id);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 }
